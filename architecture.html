@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PINN 아키텍처 다이어그램</title>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'base', themeVariables: { primaryColor: '#eef2f3', primaryTextColor: '#2c3e50', primaryBorderColor: '#3498db', lineColor: '#2c3e50' } });
+    </script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background-color: #f4f7f6; color: #333; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #2c3e50; }
+        p { text-align: center; color: #7f8c8d; }
+        .mermaid { display: flex; justify-content: center; margin-top: 20px; }
+        .btn-home { display: block; width: 200px; margin: 30px auto 0; padding: 12px; text-align: center; background-color: #3498db; color: white; text-decoration: none; border-radius: 6px; font-weight: bold; transition: 0.3s; }
+        .btn-home:hover { background-color: #2980b9; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>1D Battery Diffusion PINN Architecture</h2>
+    <p>파이썬 알고리즘 변수 및 물리 방정식 맵핑 흐름도</p>
+    
+    <div class="mermaid">
+        graph TD
+            classDef input fill:#dff9fb,stroke:#7ed6df,stroke-width:2px;
+            classDef model fill:#f6e58d,stroke:#f9ca24,stroke-width:2px;
+            classDef diff fill:#c7ecee,stroke:#22a6b3,stroke-width:2px;
+            classDef loss fill:#ffbe76,stroke:#f0932b,stroke-width:2px;
+            classDef total fill:#ff7979,stroke:#eb4d4b,stroke-width:2px,color:white;
+
+            subgraph Inputs["1. 입력층 (Collocation Points)"]
+                X["위치 변수 (x_f, x_ic, x_bc)"]:::input
+                T["시간 변수 (t_f, t_ic, t_bc)"]:::input
+            end
+
+            subgraph NN["2. 인공신경망 (PyTorch Model)"]
+                MLP["다층 퍼셉트론 (model)<br/>[Linear -> Tanh -> Linear]"]:::model
+                CPRED["농도 예측값<br/>(c_pred)"]:::model
+            end
+
+            subgraph Autograd["3. 자동 미분 (torch.autograd)"]
+                CX["위치 1차 미분<br/>(c_x)"]:::diff
+                CXX["위치 2차 미분<br/>(c_xx)"]:::diff
+                CT["시간 1차 미분<br/>(c_t)"]:::diff
+            end
+
+            subgraph Losses["4. 물리 및 조건 손실 함수 (Loss)"]
+                LPDE["물리 법칙 손실 (loss_physics)<br/>c_t - D * c_xx = 0"]:::loss
+                LIC["초기 조건 손실 (loss_ic)<br/>t=0 일때 c = c_init"]:::loss
+                LBCC["중심 대칭 손실 (loss_bc_center)<br/>x=0 일때 c_x = 0"]:::loss
+                LBCS["표면 플럭스 손실 (loss_bc_surf)<br/>-D * c_x = J_flux"]:::loss
+            end
+
+            TOTAL["총 손실 (Total Loss)<br/>가중치 합산 및 Adam 최적화"]:::total
+
+            X --> MLP
+            T --> MLP
+            MLP --> CPRED
+            
+            CPRED -->|미분| CX
+            CX -->|미분| CXX
+            CPRED -->|미분| CT
+            
+            CT --> LPDE
+            CXX --> LPDE
+            CPRED -.->|t=0 데이터| LIC
+            CX --> LBCC
+            CX --> LBCS
+
+            LPDE -->|w1| TOTAL
+            LIC -->|w2| TOTAL
+            LBCC -->|w3| TOTAL
+            LBCS -->|w4| TOTAL
+    </div>
+
+    <a href="index.html" class="btn-home">시뮬레이터로 돌아가기</a>
+</div>
+
+</body>
+</html>
